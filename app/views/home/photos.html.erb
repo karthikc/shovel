@@ -1,0 +1,99 @@
+<style type="text/css">
+	#photos { 
+	  list-style-type: none; 
+	  width: 60%; 
+	}
+	#photos li { 
+	  padding: 5px; 
+	  float: left; 
+	  cursor: move; 
+	  cursor: -moz-grab;
+	}
+	#photos li img { 
+    border: solid #CCC 2px;
+	}
+	.uploaded_date {
+	  color: #AAAAAA;
+	  font-style: italic;
+	  font-size: 0.8em;
+	  width: 90px;
+	}
+	.uploaded_date_changed {
+	  color: 0000CC;
+	}
+</style>
+
+<%= javascript_include_tag "jquery-1.7.2.min", "jquery-ui-1.8.20.custom.min"%>
+
+<script>
+
+  var images = [];
+
+  function update_uploaded_date(event, ui) {
+    initialize_all_uploaded_dates();
+    var image_element = $(event.srcElement);
+    var image_id = image_element.nextAll('.image_id').val();
+    var previous_uploaded_date = 0;
+    var next_uploaded_date = 0;
+    for(var i=0; i<images.length; i++) {
+      if(images[i].image_id == image_id) {
+        if(i > 0)
+          previous_uploaded_date = images[i-1].uploaded_at;
+        if(i<images.length-1)  
+          next_uploaded_date = images[i+1].uploaded_at;
+        break;  
+      }
+    }
+    
+    var new_uploaded_date;
+    if(previous_uploaded_date != 0 && next_uploaded_date != 0)
+      new_uploaded_date = new Date(next_uploaded_date.getTime() + ((previous_uploaded_date.getTime() - next_uploaded_date.getTime())/2));
+    else if(previous_uploaded_date == 0)
+      new_uploaded_date = new Date(next_uploaded_date.getTime() + 1000);
+    else if(next_uploaded_date == 0)
+      new_uploaded_date = new Date(previous_uploaded_date.getTime() + 1000);
+      
+    images[i].uploaded_at = new_uploaded_date;
+    image_element.nextAll('.uploaded_at').val(new_uploaded_date);
+    image_element.nextAll('.uploaded_date_changed').val('true');
+    image_element.nextAll('.uploaded_date').text('uploaded on ' + new_uploaded_date);
+    image_element.nextAll('.uploaded_date').addClass('uploaded_date_changed');
+  }
+
+  function initialize_uploaded_date() {
+    var uploaded_at = $(this).find('.uploaded_at').val();
+    var image_id = $(this).find('.image_id').val();
+    images.push({'image_id': image_id, 'uploaded_at': new Date(uploaded_at)}); 
+  }
+  
+  function initialize_all_uploaded_dates() {
+    images = [];
+    $('#photos li').each(initialize_uploaded_date);
+  }
+  
+  function initialize() {
+    initialize_all_uploaded_dates();
+    $('#photos').sortable({update: update_uploaded_date});
+  }
+  
+  $(document).ready(initialize);
+</script>
+
+<%=link_to('Previous', :action => :photos, :id => @page-1) if @page > 1%>
+
+<%=form_tag('/home/save_order', :method => :post) do%>
+  <ul id="photos">
+    <% @search_result.photos.each_with_index do |photo, index| %>
+      <li>
+        <img src='<%=photo.image_url(:square)%>'/>
+        <div class="uploaded_date">uploaded on <br/> <%=photo.uploaded_at.strftime("%d %b %Y %H:%M:%S")%> </div>
+        <input type="hidden" class="uploaded_at" value="<%=photo.uploaded_at.strftime("%Y/%m/%d %H:%M:%S")%>" name="uploaded_at[<%=index%>]"/>
+        <input type="hidden" class="image_id" value="<%=photo.id%>" name="photo_id[<%=index%>]"/>
+        <input type="hidden" class="uploaded_date_changed" value="false" name="uploaded_date_changed[<%=index%>]"/>
+      </li>
+    <% end %>
+  </ul>
+  <input type="submit" value="save"/>
+<%end%>
+
+<%=link_to('Next', :action => :photos, :id => @page+1) if @page < @search_result.pages %>
